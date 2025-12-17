@@ -63,6 +63,25 @@ python main.py
 
 服务器将在 `http://localhost:8000` 启动
 
+### Docker 部署
+
+```bash
+# 方式一: 使用 docker-compose（推荐）
+cp .env.example .env
+# 编辑 .env 填写你的凭证
+docker-compose up -d
+
+# 方式二: 直接运行
+docker build -t kirogate .
+docker run -d -p 8000:8000 \
+  -e PROXY_API_KEY="your-password" \
+  -e REFRESH_TOKEN="your-kiro-refresh-token" \
+  --name kirogate kirogate
+
+# 查看日志
+docker logs -f kirogate
+```
+
 ---
 
 ## ⚙️ 配置说明
