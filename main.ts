@@ -162,8 +162,9 @@ const AVAILABLE_MODELS = [
   "claude-3-7-sonnet-20250219",
 ];
 
-const APP_VERSION = "2.1.1-deno";
+const APP_VERSION = "2.1.2-deno";
 const APP_TITLE = "KiroGate";
+const APP_DESCRIPTION = "OpenAI & Anthropic 兼容的 Kiro API 代理网关";
 
 // Kiro API 对 tool description 的长度限制（0 表示不限制）
 const TOOL_DESCRIPTION_MAX_LENGTH = 4000;
@@ -236,6 +237,13 @@ function generateToolCallId(): string {
 
 function generateMessageId(): string {
   return `msg_${generateUUID().replace(/-/g, "").slice(0, 24)}`;
+}
+
+function maskToken(token: string): string {
+  if (!token || token.length <= 8) {
+    return "***";
+  }
+  return `${token.slice(0, 4)}...${token.slice(-4)}`;
 }
 
 async function getMachineFingerprint(): Promise<string> {
@@ -1525,7 +1533,7 @@ async function* streamWithFirstTokenRetry(
 
   // 所有重试都失败
   logger.error(`All ${maxRetries} attempts failed due to first token timeout`);
-  throw new Error(`Model did not respond within ${firstTokenTimeoutMs / 1000}s after ${maxRetries} attempts. Please try again.`);
+  throw lastError || new Error(`Model did not respond within ${firstTokenTimeoutMs / 1000}s after ${maxRetries} attempts. Please try again.`);
 }
 
 // 简单版本（无超时重试）
@@ -1942,7 +1950,31 @@ async function requestWithRetry(
 const COMMON_HEAD = `
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>KiroGate</title>
+  <title>KiroGate - OpenAI & Anthropic 兼容的 Kiro API 代理网关</title>
+
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="KiroGate 是一个开源的 Kiro IDE API 代理网关，支持 OpenAI 和 Anthropic API 格式，让你可以通过任何兼容的工具使用 Claude 模型。支持流式传输、工具调用、多租户等特性。">
+  <meta name="keywords" content="KiroGate, Kiro, Claude, OpenAI, Anthropic, API Gateway, Proxy, AI, LLM, Claude Code, Deno, 代理网关">
+  <meta name="author" content="KiroGate">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://kirogate.deno.dev/">
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://kirogate.deno.dev/">
+  <meta property="og:title" content="KiroGate - OpenAI & Anthropic 兼容的 Kiro API 代理网关">
+  <meta property="og:description" content="开源的 Kiro IDE API 代理网关，支持 OpenAI 和 Anthropic API 格式，通过任何兼容工具使用 Claude 模型。">
+  <meta property="og:site_name" content="KiroGate">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:url" content="https://kirogate.deno.dev/">
+  <meta name="twitter:title" content="KiroGate - OpenAI & Anthropic 兼容的 Kiro API 代理网关">
+  <meta name="twitter:description" content="开源的 Kiro IDE API 代理网关，支持 OpenAI 和 Anthropic API 格式，通过任何兼容工具使用 Claude 模型。">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
+
   <script src="${PROXY_BASE}/proxy/cdn.tailwindcss.com"></script>
   <script src="${PROXY_BASE}/proxy/cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
   <script src="${PROXY_BASE}/proxy/cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
@@ -2011,6 +2043,58 @@ const COMMON_HEAD = `
     .theme-toggle:hover {
       background: var(--bg-card);
     }
+    /* 代码块优化 */
+    pre {
+      max-width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    pre::-webkit-scrollbar {
+      height: 6px;
+    }
+    pre::-webkit-scrollbar-track {
+      background: var(--bg-input);
+      border-radius: 3px;
+    }
+    pre::-webkit-scrollbar-thumb {
+      background: var(--border-dark);
+      border-radius: 3px;
+    }
+    /* 加载动画 */
+    .loading-spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--border);
+      border-radius: 50%;
+      border-top-color: var(--primary);
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .loading-pulse {
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    /* 表格响应式 */
+    .table-responsive {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .table-responsive::-webkit-scrollbar {
+      height: 6px;
+    }
+    .table-responsive::-webkit-scrollbar-track {
+      background: var(--bg-input);
+    }
+    .table-responsive::-webkit-scrollbar-thumb {
+      background: var(--border-dark);
+      border-radius: 3px;
+    }
   </style>
   <script>
     // Theme initialization
@@ -2030,6 +2114,7 @@ const COMMON_NAV = `
           <div class="hidden md:flex space-x-6">
             <a href="/" class="nav-link">首页</a>
             <a href="/docs" class="nav-link">文档</a>
+            <a href="/swagger" class="nav-link">Swagger</a>
             <a href="/playground" class="nav-link">Playground</a>
             <a href="/deploy" class="nav-link">部署</a>
             <a href="/dashboard" class="nav-link">Dashboard</a>
@@ -2044,8 +2129,28 @@ const COMMON_NAV = `
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
             </svg>
           </button>
-          <span class="text-sm" style="color: var(--text-muted);">v${APP_VERSION}</span>
+          <span class="hidden sm:inline text-sm" style="color: var(--text-muted);">v${APP_VERSION}</span>
+          <!-- 移动端汉堡菜单按钮 -->
+          <button onclick="toggleMobileMenu()" class="md:hidden theme-toggle" title="菜单">
+            <svg id="menu-icon-open" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+            <svg id="menu-icon-close" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display: none;">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
         </div>
+      </div>
+    </div>
+    <!-- 移动端导航菜单 -->
+    <div id="mobile-menu" class="md:hidden hidden" style="background: var(--bg-nav); border-top: 1px solid var(--border);">
+      <div class="px-4 py-3 space-y-2">
+        <a href="/" class="block nav-link py-2 px-3 rounded hover:bg-indigo-500/10">首页</a>
+        <a href="/docs" class="block nav-link py-2 px-3 rounded hover:bg-indigo-500/10">文档</a>
+        <a href="/swagger" class="block nav-link py-2 px-3 rounded hover:bg-indigo-500/10">Swagger</a>
+        <a href="/playground" class="block nav-link py-2 px-3 rounded hover:bg-indigo-500/10">Playground</a>
+        <a href="/deploy" class="block nav-link py-2 px-3 rounded hover:bg-indigo-500/10">部署</a>
+        <a href="/dashboard" class="block nav-link py-2 px-3 rounded hover:bg-indigo-500/10">Dashboard</a>
       </div>
     </div>
   </nav>
@@ -2072,16 +2177,48 @@ const COMMON_NAV = `
       }
     }
 
+    function toggleMobileMenu() {
+      const menu = document.getElementById('mobile-menu');
+      const openIcon = document.getElementById('menu-icon-open');
+      const closeIcon = document.getElementById('menu-icon-close');
+      const isHidden = menu.classList.contains('hidden');
+
+      if (isHidden) {
+        menu.classList.remove('hidden');
+        openIcon.style.display = 'none';
+        closeIcon.style.display = 'block';
+      } else {
+        menu.classList.add('hidden');
+        openIcon.style.display = 'block';
+        closeIcon.style.display = 'none';
+      }
+    }
+
     // Initialize icon on page load
     document.addEventListener('DOMContentLoaded', updateThemeIcon);
   </script>
 `;
 
 const COMMON_FOOTER = `
-  <footer style="background: var(--bg-nav); border-top: 1px solid var(--border);" class="py-8 mt-16">
+  <footer style="background: var(--bg-nav); border-top: 1px solid var(--border);" class="py-6 sm:py-8 mt-12 sm:mt-16">
     <div class="max-w-7xl mx-auto px-4 text-center" style="color: var(--text-muted);">
-      <p>KiroGate - OpenAI & Anthropic 兼容的 Kiro API 网关</p>
-      <p class="mt-2 text-sm">基于 <a href="https://github.com/dext7r/KiroGate" class="text-indigo-400 hover:underline">KiroGate</a> | 欲买桂花同载酒 终不似少年游</p>
+      <p class="text-sm sm:text-base">KiroGate - OpenAI & Anthropic 兼容的 Kiro API 网关</p>
+      <div class="mt-3 sm:mt-4 flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs sm:text-sm">
+        <span class="flex items-center gap-1">
+          <span style="color: var(--text);">Deno</span>
+          <a href="https://kirogate.deno.dev" class="text-indigo-400 hover:underline" target="_blank">Demo</a>
+          <span>·</span>
+          <a href="https://github.com/dext7r/KiroGate" class="text-indigo-400 hover:underline" target="_blank">GitHub</a>
+        </span>
+        <span class="hidden sm:inline" style="color: var(--border-dark);">|</span>
+        <span class="flex items-center gap-1">
+          <span style="color: var(--text);">Python</span>
+          <a href="https://kirogate.fly.dev" class="text-indigo-400 hover:underline" target="_blank">Demo</a>
+          <span>·</span>
+          <a href="https://github.com/aliom-v/KiroGate" class="text-indigo-400 hover:underline" target="_blank">GitHub</a>
+        </span>
+      </div>
+      <p class="mt-3 text-xs sm:text-sm opacity-75">欲买桂花同载酒 终不似少年游</p>
     </div>
   </footer>
 `;
@@ -2093,19 +2230,19 @@ function renderHomePage(): string {
 <body>
   ${COMMON_NAV}
 
-  <main class="max-w-7xl mx-auto px-4 py-12">
+  <main class="max-w-7xl mx-auto px-4 py-8 sm:py-12">
     <!-- Hero Section -->
-    <section class="text-center py-16">
-      <h1 class="text-5xl font-bold mb-6 bg-gradient-to-r from-indigo-400 to-purple-500 bg-clip-text text-transparent">
+    <section class="text-center py-8 sm:py-16">
+      <h1 class="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 sm:mb-6 bg-gradient-to-r from-indigo-400 to-purple-500 bg-clip-text text-transparent">
         KiroGate API 网关
       </h1>
-      <p class="text-xl text-slate-400 mb-8 max-w-2xl mx-auto">
+      <p class="text-base sm:text-xl text-slate-400 mb-6 sm:mb-8 max-w-2xl mx-auto px-4">
         将 OpenAI 和 Anthropic API 请求无缝代理到 Kiro (AWS CodeWhisperer)，
         支持完整的流式传输、工具调用和多模型切换。
       </p>
-      <div class="flex justify-center gap-4">
-        <a href="/docs" class="btn-primary text-lg px-6 py-3">📖 查看文档</a>
-        <a href="/playground" class="btn-primary text-lg px-6 py-3 bg-slate-700 hover:bg-slate-600">🎮 在线试用</a>
+      <div class="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 px-4">
+        <a href="/docs" class="btn-primary text-base sm:text-lg px-6 py-3">📖 查看文档</a>
+        <a href="/playground" class="btn-primary text-base sm:text-lg px-6 py-3 bg-slate-700 hover:bg-slate-600">🎮 在线试用</a>
       </div>
     </section>
 
@@ -2197,19 +2334,41 @@ function renderDocsPage(): string {
 <body>
   ${COMMON_NAV}
 
-  <main class="max-w-4xl mx-auto px-4 py-12">
+  <main class="max-w-7xl mx-auto px-4 py-12">
     <h1 class="text-4xl font-bold mb-8">📖 API 文档</h1>
 
     <div class="space-y-8">
       <section class="card">
         <h2 class="text-2xl font-semibold mb-4">🔑 认证</h2>
-        <p style="color: var(--text-muted);" class="mb-4">所有 API 请求需要在 Header 中携带 API Key：</p>
-        <pre style="background: var(--bg-input); border: 1px solid var(--border); color: var(--text);" class="p-4 rounded-lg overflow-x-auto text-sm">
+        <p style="color: var(--text-muted);" class="mb-4">所有 API 请求需要在 Header 中携带 API Key。支持两种认证模式：</p>
+
+        <h3 class="text-lg font-medium mb-2 text-indigo-400">模式 1: 简单模式（使用服务器配置的 REFRESH_TOKEN）</h3>
+        <pre style="background: var(--bg-input); border: 1px solid var(--border); color: var(--text);" class="p-4 rounded-lg overflow-x-auto text-sm mb-4">
 # OpenAI 格式
 Authorization: Bearer YOUR_PROXY_API_KEY
 
 # Anthropic 格式
 x-api-key: YOUR_PROXY_API_KEY</pre>
+
+        <h3 class="text-lg font-medium mb-2 text-indigo-400">模式 2: 组合模式（用户自带 REFRESH_TOKEN，无需服务器配置）✨ 推荐</h3>
+        <pre style="background: var(--bg-input); border: 1px solid var(--border); color: var(--text);" class="p-4 rounded-lg overflow-x-auto text-sm">
+# OpenAI 格式
+Authorization: Bearer YOUR_PROXY_API_KEY:YOUR_REFRESH_TOKEN
+
+# Anthropic 格式
+x-api-key: YOUR_PROXY_API_KEY:YOUR_REFRESH_TOKEN</pre>
+
+        <div style="background: var(--bg-input); border: 1px solid var(--border);" class="p-4 rounded-lg mt-4">
+          <p class="text-sm" style="color: var(--text-muted);">
+            <strong>💡 优先级说明：</strong>
+          </p>
+          <ul class="text-sm mt-2 space-y-1" style="color: var(--text-muted);">
+            <li>• <strong>优先使用组合模式</strong>：如果 API Key 包含冒号 <code>:</code>，自动识别为 <code>PROXY_API_KEY:REFRESH_TOKEN</code> 格式</li>
+            <li>• <strong>回退到简单模式</strong>：如果不包含冒号，使用服务器配置的全局 REFRESH_TOKEN</li>
+            <li>• <strong>多租户支持</strong>：组合模式允许多个用户使用各自的 REFRESH_TOKEN，无需修改服务器配置</li>
+            <li>• <strong>缓存优化</strong>：每个用户的认证信息会被缓存（最多100个用户），提升性能</li>
+          </ul>
+        </div>
       </section>
 
       <section class="card">
@@ -2315,10 +2474,10 @@ function renderPlaygroundPage(): string {
 <body>
   ${COMMON_NAV}
 
-  <main class="max-w-6xl mx-auto px-4 py-12">
+  <main class="max-w-7xl mx-auto px-4 py-12">
     <h1 class="text-4xl font-bold mb-8">🎮 API Playground</h1>
 
-    <div class="grid lg:grid-cols-2 gap-6">
+    <div class="grid md:grid-cols-2 gap-6">
       <!-- Request Panel -->
       <div class="card">
         <h2 class="text-xl font-semibold mb-4">请求配置</h2>
@@ -2326,7 +2485,11 @@ function renderPlaygroundPage(): string {
         <div class="space-y-4">
           <div>
             <label class="block text-sm mb-1" style="color: var(--text-muted);">API Key</label>
-            <input type="password" id="apiKey" style="background: var(--bg-input); border: 1px solid var(--border); color: var(--text);" class="w-full rounded px-3 py-2" placeholder="Your proxy API key">
+            <input type="password" id="apiKey" style="background: var(--bg-input); border: 1px solid var(--border); color: var(--text);" class="w-full rounded px-3 py-2" placeholder="PROXY_API_KEY 或 PROXY_API_KEY:REFRESH_TOKEN" oninput="updateAuthMode()">
+            <div id="authModeDisplay" class="mt-2 text-sm flex items-center gap-2">
+              <span id="authModeIcon">🔒</span>
+              <span id="authModeText" style="color: var(--text-muted);">输入 API Key 后显示认证模式</span>
+            </div>
           </div>
 
           <div>
@@ -2356,19 +2519,20 @@ function renderPlaygroundPage(): string {
             </label>
           </div>
 
-          <button onclick="sendRequest()" class="btn-primary w-full py-3 text-lg">
-            🚀 发送请求
+          <button id="sendBtn" onclick="sendRequest()" class="btn-primary w-full py-3 text-base sm:text-lg">
+            <span id="sendBtnText">🚀 发送请求</span>
+            <span id="sendBtnLoading" class="hidden"><span class="loading-spinner mr-2"></span>请求中...</span>
           </button>
         </div>
       </div>
 
       <!-- Response Panel -->
       <div class="card">
-        <h2 class="text-xl font-semibold mb-4">响应结果</h2>
-        <div id="response" style="background: var(--bg-input); border: 1px solid var(--border); color: var(--text);" class="rounded p-4 min-h-[300px] whitespace-pre-wrap text-sm font-mono overflow-auto">
+        <h2 class="text-lg sm:text-xl font-semibold mb-4">响应结果</h2>
+        <div id="response" style="background: var(--bg-input); border: 1px solid var(--border); color: var(--text);" class="rounded p-3 sm:p-4 min-h-[250px] sm:min-h-[300px] whitespace-pre-wrap text-xs sm:text-sm font-mono overflow-auto">
           <span style="color: var(--text-muted);">响应将显示在这里...</span>
         </div>
-        <div id="stats" class="mt-4 text-sm" style="color: var(--text-muted);"></div>
+        <div id="stats" class="mt-3 sm:mt-4 text-xs sm:text-sm" style="color: var(--text-muted);"></div>
       </div>
     </div>
   </main>
@@ -2376,6 +2540,29 @@ function renderPlaygroundPage(): string {
   ${COMMON_FOOTER}
 
   <script>
+    function updateAuthMode() {
+      const apiKey = document.getElementById('apiKey').value;
+      const iconEl = document.getElementById('authModeIcon');
+      const textEl = document.getElementById('authModeText');
+
+      if (!apiKey) {
+        iconEl.textContent = '🔒';
+        textEl.textContent = '输入 API Key 后显示认证模式';
+        textEl.style.color = 'var(--text-muted)';
+        return;
+      }
+
+      if (apiKey.includes(':')) {
+        // 组合模式
+        iconEl.textContent = '👥';
+        textEl.innerHTML = '<span style="color: #22c55e; font-weight: 600;">组合模式</span> <span style="color: var(--text-muted);">- PROXY_API_KEY:REFRESH_TOKEN（多租户）</span>';
+      } else {
+        // 简单模式
+        iconEl.textContent = '🔑';
+        textEl.innerHTML = '<span style="color: #3b82f6; font-weight: 600;">简单模式</span> <span style="color: var(--text-muted);">- 使用服务器配置的 REFRESH_TOKEN</span>';
+      }
+    }
+
     async function sendRequest() {
       const apiKey = document.getElementById('apiKey').value;
       const model = document.getElementById('model').value;
@@ -2385,8 +2572,15 @@ function renderPlaygroundPage(): string {
 
       const responseEl = document.getElementById('response');
       const statsEl = document.getElementById('stats');
+      const sendBtn = document.getElementById('sendBtn');
+      const sendBtnText = document.getElementById('sendBtnText');
+      const sendBtnLoading = document.getElementById('sendBtnLoading');
 
-      responseEl.textContent = '请求中...';
+      // 显示加载状态
+      sendBtn.disabled = true;
+      sendBtnText.classList.add('hidden');
+      sendBtnLoading.classList.remove('hidden');
+      responseEl.innerHTML = '<span class="loading-pulse" style="color: var(--text-muted);">请求中...</span>';
       statsEl.textContent = '';
 
       const startTime = Date.now();
@@ -2486,6 +2680,11 @@ function renderPlaygroundPage(): string {
 
       } catch (e) {
         responseEl.textContent = '错误: ' + e.message;
+      } finally {
+        // 恢复按钮状态
+        sendBtn.disabled = false;
+        sendBtnText.classList.remove('hidden');
+        sendBtnLoading.classList.add('hidden');
       }
     }
   </script>
@@ -2500,7 +2699,7 @@ function renderDeployPage(): string {
 <body>
   ${COMMON_NAV}
 
-  <main class="max-w-4xl mx-auto px-4 py-12">
+  <main class="max-w-7xl mx-auto px-4 py-12">
     <h1 class="text-4xl font-bold mb-8">🚀 部署指南</h1>
 
     <div class="space-y-8">
@@ -2518,9 +2717,12 @@ function renderDeployPage(): string {
         <pre style="background: var(--bg-input); border: 1px solid var(--border); color: var(--text);" class="p-4 rounded-lg overflow-x-auto text-sm">
 # 必填项
 PROXY_API_KEY="your-secret-api-key"      # 代理服务器密码
+
+# 可选项（仅简单模式需要）
+# 如果使用组合模式（PROXY_API_KEY:REFRESH_TOKEN），可以不配置此项
 REFRESH_TOKEN="your-kiro-refresh-token"  # Kiro Refresh Token
 
-# 可选项
+# 其他可选配置
 KIRO_REGION="us-east-1"                  # AWS 区域
 PROFILE_ARN="arn:aws:..."                # Profile ARN (通常自动获取)
 PORT="8000"                               # 服务端口
@@ -2528,14 +2730,27 @@ LOG_LEVEL="INFO"                          # 日志级别
 
 # 或使用凭证文件
 KIRO_CREDS_FILE="~/.kiro/credentials.json"</pre>
+
+        <div style="background: var(--bg-input); border: 1px solid var(--border);" class="p-4 rounded-lg mt-4">
+          <p class="text-sm font-semibold mb-2" style="color: var(--text);">配置说明：</p>
+          <ul class="text-sm space-y-1" style="color: var(--text-muted);">
+            <li>• <strong>简单模式</strong>：必须配置 <code>REFRESH_TOKEN</code> 环境变量</li>
+            <li>• <strong>组合模式（推荐）</strong>：无需配置 <code>REFRESH_TOKEN</code>，用户在请求中直接传递</li>
+            <li>• <strong>多租户部署</strong>：使用组合模式可以让多个用户共享同一网关实例</li>
+          </ul>
+        </div>
       </section>
 
       <section class="card">
         <h2 class="text-2xl font-semibold mb-4">🦕 Deno 本地运行</h2>
         <pre style="background: var(--bg-input); border: 1px solid var(--border); color: var(--text);" class="p-4 rounded-lg overflow-x-auto text-sm">
-# 设置环境变量
+# 简单模式：设置环境变量
 export PROXY_API_KEY="your-secret-key"
 export REFRESH_TOKEN="your-refresh-token"
+
+# 组合模式（推荐）：只需设置 PROXY_API_KEY
+export PROXY_API_KEY="your-secret-key"
+# 用户在请求中传递 PROXY_API_KEY:REFRESH_TOKEN
 
 # 运行服务
 deno run --allow-net --allow-env --unstable-kv main.ts
@@ -2554,6 +2769,7 @@ deno run \\
           <span>🐳</span>
           <span>Docker 部署</span>
         </h2>
+        <h3 class="text-lg font-medium mb-2 text-indigo-400">简单模式</h3>
         <pre style="background: var(--bg-input); border: 1px solid var(--border); color: var(--text);" class="p-4 rounded-lg overflow-x-auto text-sm">
 # Dockerfile
 FROM denoland/deno:latest
@@ -2572,6 +2788,17 @@ docker run -d \\
   -e PROXY_API_KEY="your-key" \\
   -e REFRESH_TOKEN="your-token" \\
   kirogate</pre>
+
+        <h3 class="text-lg font-medium mb-2 mt-6 text-indigo-400">组合模式（推荐 - 无需配置 REFRESH_TOKEN）</h3>
+        <pre style="background: var(--bg-input); border: 1px solid var(--border); color: var(--text);" class="p-4 rounded-lg overflow-x-auto text-sm">
+# 构建并运行（只需配置 PROXY_API_KEY）
+docker build -t kirogate .
+docker run -d \\
+  -p 8000:8000 \\
+  -e PROXY_API_KEY="your-key" \\
+  kirogate
+
+# 用户在请求中传递 PROXY_API_KEY:REFRESH_TOKEN</pre>
       </section>
 
       <section class="card">
@@ -2579,6 +2806,7 @@ docker run -d \\
           <span>☁️</span>
           <span>Deno Deploy</span>
         </h2>
+        <h3 class="text-lg font-medium mb-2 text-indigo-400">简单模式</h3>
         <pre style="background: var(--bg-input); border: 1px solid var(--border); color: var(--text);" class="p-4 rounded-lg overflow-x-auto text-sm">
 # 安装 deployctl
 deno install -A jsr:@deno/deployctl
@@ -2589,10 +2817,34 @@ deployctl deploy --project=your-project main.ts
 # 设置环境变量 (在 Deno Deploy 控制台)
 PROXY_API_KEY=your-key
 REFRESH_TOKEN=your-token</pre>
+
+        <h3 class="text-lg font-medium mb-2 mt-6 text-indigo-400">组合模式（推荐 - 无需配置 REFRESH_TOKEN）</h3>
+        <pre style="background: var(--bg-input); border: 1px solid var(--border); color: var(--text);" class="p-4 rounded-lg overflow-x-auto text-sm">
+# 部署
+deployctl deploy --project=your-project main.ts
+
+# 设置环境变量 (在 Deno Deploy 控制台)
+# 只需配置 PROXY_API_KEY
+PROXY_API_KEY=your-key
+
+# 用户在请求中传递 PROXY_API_KEY:REFRESH_TOKEN
+# 支持多用户共享同一部署实例</pre>
       </section>
 
       <section class="card">
         <h2 class="text-2xl font-semibold mb-4">🔐 获取 Refresh Token</h2>
+        <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1)); border: 1px solid var(--primary);" class="p-4 rounded-lg mb-4">
+          <p class="text-sm font-semibold mb-2" style="color: var(--text);">✨ 推荐工具：Kiro Account Manager</p>
+          <p class="text-sm mb-2" style="color: var(--text-muted);">
+            使用 <a href="https://github.com/chaogei/Kiro-account-manager" class="text-indigo-400 hover:underline font-medium" target="_blank">Kiro Account Manager</a>
+            可以轻松管理和获取 Refresh Token，无需手动抓包。
+          </p>
+          <a href="https://github.com/chaogei/Kiro-account-manager" target="_blank" class="inline-flex items-center gap-2 text-sm text-indigo-400 hover:text-indigo-300">
+            <span>前往 GitHub 查看 →</span>
+          </a>
+        </div>
+
+        <p class="text-sm mb-3" style="color: var(--text-muted);">或者手动获取：</p>
         <ol class="list-decimal list-inside space-y-2" style="color: var(--text-muted);">
           <li>安装并打开 <a href="https://kiro.dev/" class="text-indigo-400 hover:underline">Kiro IDE</a></li>
           <li>登录你的账号</li>
@@ -2609,385 +2861,84 @@ REFRESH_TOKEN=your-token</pre>
 </html>`;
 }
 
+function generateOpenAPISpec(): Record<string, unknown> {
+  const msgSchema = { type: "object", required: ["role", "content"], properties: { role: { type: "string" }, content: { oneOf: [{ type: "string" }, { type: "array" }] } } };
+  return {
+    openapi: "3.1.0",
+    info: { title: APP_TITLE, description: APP_DESCRIPTION, version: APP_VERSION },
+    servers: [{ url: "/", description: "当前服务器" }],
+    tags: [{ name: "Health" }, { name: "Models" }, { name: "Chat" }, { name: "Messages" }],
+    paths: {
+      "/health": { get: { tags: ["Health"], summary: "健康检查", responses: { "200": { description: "OK" } } } },
+      "/v1/models": { get: { tags: ["Models"], summary: "模型列表", security: [{ BearerAuth: [] }], responses: { "200": { description: "模型列表" }, "401": { description: "未授权" } } } },
+      "/v1/chat/completions": {
+        post: {
+          tags: ["Chat"], summary: "OpenAI 聊天补全", security: [{ BearerAuth: [] }],
+          requestBody: { required: true, content: { "application/json": { schema: { type: "object", required: ["model", "messages"], properties: { model: { type: "string", enum: AVAILABLE_MODELS }, messages: { type: "array", items: msgSchema }, stream: { type: "boolean" }, temperature: { type: "number" }, max_tokens: { type: "integer" }, tools: { type: "array" } } } } } },
+          responses: { "200": { description: "成功" }, "400": { description: "请求无效" }, "401": { description: "未授权" } }
+        }
+      },
+      "/v1/messages": {
+        post: {
+          tags: ["Messages"], summary: "Anthropic Messages API", security: [{ ApiKeyAuth: [] }, { BearerAuth: [] }],
+          requestBody: { required: true, content: { "application/json": { schema: { type: "object", required: ["model", "messages", "max_tokens"], properties: { model: { type: "string", enum: AVAILABLE_MODELS }, messages: { type: "array", items: msgSchema }, max_tokens: { type: "integer" }, system: { type: "string" }, stream: { type: "boolean" }, temperature: { type: "number" }, tools: { type: "array" } } } } } },
+          responses: { "200": { description: "成功" }, "400": { description: "请求无效" }, "401": { description: "未授权" } }
+        }
+      }
+    },
+    components: { securitySchemes: { BearerAuth: { type: "http", scheme: "bearer", description: "Bearer YOUR_API_KEY 或 Bearer YOUR_API_KEY:YOUR_REFRESH_TOKEN" }, ApiKeyAuth: { type: "apiKey", in: "header", name: "x-api-key", description: "YOUR_API_KEY 或 YOUR_API_KEY:YOUR_REFRESH_TOKEN" } } }
+  };
+}
+
+function renderSwaggerPage(): string {
+  return `<!DOCTYPE html><html lang="zh"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>KiroGate - Swagger</title><link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>"><link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css"><style>body{margin:0;background:#fafafa}.swagger-ui .topbar{display:none}.hdr{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;padding:1rem 2rem;display:flex;align-items:center;justify-content:space-between}.hdr h1{margin:0;font-size:1.5rem}.hdr a{color:#fff;text-decoration:none;opacity:.8;margin-left:1.5rem}.hdr a:hover{opacity:1}.badge{background:rgba(255,255,255,.2);padding:.25rem .5rem;border-radius:.25rem;font-size:.8rem;margin-left:1rem}</style></head><body><div class="hdr"><div style="display:flex;align-items:center"><h1>⚡ KiroGate API</h1><span class="badge">v${APP_VERSION}</span></div><nav><a href="/">首页</a><a href="/docs">文档</a><a href="/playground">Playground</a><a href="https://github.com/dext7r/KiroGate" target="_blank">GitHub</a></nav></div><div id="swagger-ui"></div><script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script><script>window.onload=function(){SwaggerUIBundle({url:"/openapi.json",dom_id:"#swagger-ui",deepLinking:true,presets:[SwaggerUIBundle.presets.apis,SwaggerUIBundle.SwaggerUIStandalonePreset],layout:"BaseLayout",docExpansion:"list",filter:true})}</script></body></html>`;
+}
+
 function renderDashboardPage(): string {
   return `<!DOCTYPE html>
 <html lang="zh">
 <head>${COMMON_HEAD}
-  <style>
-    .metric-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      transition: all 0.3s ease;
-      border-radius: 0.75rem;
-      padding: 1.5rem;
-    }
-    .metric-card:hover {
-      border-color: var(--primary);
-      transform: translateY(-2px);
-    }
-    .metric-icon {
-      width: 40px;
-      height: 40px;
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 12px;
-    }
-    .metric-icon svg {
-      width: 20px;
-      height: 20px;
-    }
-    .chart-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 0.75rem;
-      padding: 1.5rem;
-    }
-    .section-title {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .section-title svg {
-      width: 20px;
-      height: 20px;
-      color: var(--primary);
-    }
-    .table-header {
-      color: var(--text-muted);
-      border-bottom: 1px solid var(--border);
-    }
-    .table-row {
-      border-bottom: 1px solid var(--border);
-    }
-    .badge {
-      padding: 0.25rem 0.5rem;
-      border-radius: 0.25rem;
-      font-size: 0.75rem;
-      font-weight: 500;
-    }
-    .pagination-btn {
-      padding: 0.5rem 0.75rem;
-      background: var(--bg-input);
-      border: 1px solid var(--border);
-      border-radius: 0.375rem;
-      font-size: 0.875rem;
-      color: var(--text);
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .pagination-btn:hover:not(:disabled) {
-      background: var(--bg-card);
-      border-color: var(--primary);
-    }
-    .pagination-btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-    .select-input {
-      background: var(--bg-input);
-      border: 1px solid var(--border);
-      color: var(--text);
-      padding: 0.25rem 0.5rem;
-      border-radius: 0.375rem;
-    }
-  </style>
+<style>.mc{background:var(--bg-card);border:1px solid var(--border);border-radius:.75rem;padding:1rem;text-align:center}.mc:hover{border-color:var(--primary)}.mi{font-size:1.5rem;margin-bottom:.5rem}</style>
 </head>
 <body>
   ${COMMON_NAV}
-
-  <main class="max-w-7xl mx-auto px-4 py-12">
-    <div class="flex justify-between items-center mb-8">
-      <h1 class="text-4xl font-bold flex items-center gap-3">
-        <svg class="w-10 h-10 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-        </svg>
-        Dashboard
-      </h1>
-      <button onclick="refreshData()" class="btn-primary flex items-center gap-2">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-        </svg>
-        刷新数据
-      </button>
+  <main class="max-w-7xl mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-3xl font-bold">📊 Dashboard</h1>
+      <button onclick="refreshData()" class="btn-primary">🔄 刷新</button>
     </div>
-
-    <!-- Metrics Cards Row 1 -->
-    <div class="grid md:grid-cols-4 gap-4 mb-4">
-      <div class="card metric-card text-center py-6">
-        <div class="metric-icon bg-indigo-500/20 mx-auto">
-          <svg class="text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/>
-          </svg>
-        </div>
-        <div class="text-3xl font-bold text-indigo-400" id="totalRequests">-</div>
-        <div class="text-sm mt-1" style="color: var(--text-muted);">总请求数</div>
-      </div>
-      <div class="card metric-card text-center py-6">
-        <div class="metric-icon bg-green-500/20 mx-auto">
-          <svg class="text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-          </svg>
-        </div>
-        <div class="text-3xl font-bold text-green-400" id="successRate">-</div>
-        <div class="text-sm mt-1" style="color: var(--text-muted);">成功率</div>
-      </div>
-      <div class="card metric-card text-center py-6">
-        <div class="metric-icon bg-yellow-500/20 mx-auto">
-          <svg class="text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-          </svg>
-        </div>
-        <div class="text-3xl font-bold text-yellow-400" id="avgResponseTime">-</div>
-        <div class="text-sm mt-1" style="color: var(--text-muted);">平均响应时间</div>
-      </div>
-      <div class="card metric-card text-center py-6">
-        <div class="metric-icon bg-purple-500/20 mx-auto">
-          <svg class="text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.636 18.364a9 9 0 010-12.728m12.728 0a9 9 0 010 12.728m-9.9-2.829a5 5 0 010-7.07m7.072 0a5 5 0 010 7.07M13 12a1 1 0 11-2 0 1 1 0 012 0z"/>
-          </svg>
-        </div>
-        <div class="text-3xl font-bold text-purple-400" id="uptime">-</div>
-        <div class="text-sm mt-1" style="color: var(--text-muted);">运行时长</div>
-      </div>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+      <div class="mc"><div class="mi">📈</div><div class="text-2xl font-bold text-indigo-400" id="totalRequests">-</div><div class="text-xs" style="color:var(--text-muted)">总请求</div></div>
+      <div class="mc"><div class="mi">✅</div><div class="text-2xl font-bold text-green-400" id="successRate">-</div><div class="text-xs" style="color:var(--text-muted)">成功率</div></div>
+      <div class="mc"><div class="mi">⏱️</div><div class="text-2xl font-bold text-yellow-400" id="avgResponseTime">-</div><div class="text-xs" style="color:var(--text-muted)">平均耗时</div></div>
+      <div class="mc"><div class="mi">🕐</div><div class="text-2xl font-bold text-purple-400" id="uptime">-</div><div class="text-xs" style="color:var(--text-muted)">运行时长</div></div>
     </div>
-
-    <!-- Metrics Cards Row 2 -->
-    <div class="grid md:grid-cols-4 gap-4 mb-8">
-      <div class="card metric-card text-center py-5">
-        <div class="metric-icon bg-blue-500/20 mx-auto">
-          <svg class="text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-          </svg>
-        </div>
-        <div class="text-2xl font-bold text-blue-400" id="streamRequests">-</div>
-        <div class="text-slate-400 text-sm mt-1">流式请求</div>
-      </div>
-      <div class="card metric-card text-center py-5">
-        <div class="metric-icon bg-cyan-500/20 mx-auto">
-          <svg class="text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/>
-          </svg>
-        </div>
-        <div class="text-2xl font-bold text-cyan-400" id="nonStreamRequests">-</div>
-        <div class="text-slate-400 text-sm mt-1">非流式请求</div>
-      </div>
-      <div class="card metric-card text-center py-5">
-        <div class="metric-icon bg-red-500/20 mx-auto">
-          <svg class="text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-          </svg>
-        </div>
-        <div class="text-2xl font-bold text-red-400" id="failedRequests">-</div>
-        <div class="text-slate-400 text-sm mt-1">失败请求</div>
-      </div>
-      <div class="card metric-card text-center py-5">
-        <div class="metric-icon bg-emerald-500/20 mx-auto">
-          <svg class="text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-          </svg>
-        </div>
-        <div class="text-2xl font-bold text-emerald-400" id="topModel">-</div>
-        <div class="text-slate-400 text-sm mt-1">热门模型</div>
-      </div>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+      <div class="mc"><div class="mi">⚡</div><div class="text-xl font-bold text-blue-400" id="streamRequests">-</div><div class="text-xs" style="color:var(--text-muted)">流式请求</div></div>
+      <div class="mc"><div class="mi">💾</div><div class="text-xl font-bold text-cyan-400" id="nonStreamRequests">-</div><div class="text-xs" style="color:var(--text-muted)">非流式</div></div>
+      <div class="mc"><div class="mi">❌</div><div class="text-xl font-bold text-red-400" id="failedRequests">-</div><div class="text-xs" style="color:var(--text-muted)">失败</div></div>
+      <div class="mc"><div class="mi">🤖</div><div class="text-xl font-bold text-emerald-400" id="topModel">-</div><div class="text-xs" style="color:var(--text-muted)">热门模型</div></div>
     </div>
-
-    <!-- API Type Stats -->
-    <div class="grid md:grid-cols-2 gap-4 mb-8">
-      <div class="card metric-card text-center py-5">
-        <div class="metric-icon bg-green-500/20 mx-auto">
-          <svg class="text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-          </svg>
-        </div>
-        <div class="text-2xl font-bold text-green-400" id="openaiRequests">-</div>
-        <div class="text-slate-400 text-sm mt-1">OpenAI API 请求</div>
-      </div>
-      <div class="card metric-card text-center py-5">
-        <div class="metric-icon bg-purple-500/20 mx-auto">
-          <svg class="text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
-          </svg>
-        </div>
-        <div class="text-2xl font-bold text-purple-400" id="anthropicRequests">-</div>
-        <div class="text-slate-400 text-sm mt-1">Anthropic API 请求</div>
-      </div>
+    <div class="grid grid-cols-2 gap-3 mb-6">
+      <div class="mc"><div class="mi">🟢</div><div class="text-xl font-bold text-green-400" id="openaiRequests">-</div><div class="text-xs" style="color:var(--text-muted)">OpenAI API</div></div>
+      <div class="mc"><div class="mi">🟣</div><div class="text-xl font-bold text-purple-400" id="anthropicRequests">-</div><div class="text-xs" style="color:var(--text-muted)">Anthropic API</div></div>
     </div>
-
-    <!-- Charts -->
-    <div class="grid lg:grid-cols-2 gap-6 mb-8">
-      <div class="card chart-card">
-        <h2 class="text-xl font-semibold mb-4 section-title">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
-          </svg>
-          请求耗时趋势
-        </h2>
-        <div id="latencyChart" style="height: 300px;"></div>
-      </div>
-      <div class="card chart-card">
-        <h2 class="text-xl font-semibold mb-4 section-title">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/>
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"/>
-          </svg>
-          请求状态分布
-        </h2>
-        <div style="height: 300px; position: relative;">
-          <canvas id="statusChart"></canvas>
-        </div>
-      </div>
+    <div class="grid lg:grid-cols-2 gap-4 mb-6">
+      <div class="card"><h2 class="text-lg font-semibold mb-3">📈 耗时趋势</h2><div id="latencyChart" style="height:250px"></div></div>
+      <div class="card"><h2 class="text-lg font-semibold mb-3">📊 状态分布</h2><div style="height:250px;position:relative"><canvas id="statusChart"></canvas></div></div>
     </div>
-
-    <!-- Recent Requests Table -->
-    <div class="card chart-card">
-      <div class="flex justify-between items-center mb-4">
-        <h2 class="text-xl font-semibold section-title">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-          </svg>
-          最近请求 (最近10条)
-        </h2>
-      </div>
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="text-left table-header">
-              <th class="py-3 px-4">时间</th>
-              <th class="py-3 px-4">API</th>
-              <th class="py-3 px-4">方法</th>
-              <th class="py-3 px-4">路径</th>
-              <th class="py-3 px-4">状态</th>
-              <th class="py-3 px-4">耗时</th>
-              <th class="py-3 px-4">模型</th>
-              <th class="py-3 px-4">错误信息</th>
-            </tr>
-          </thead>
-          <tbody id="recentRequestsTable">
-            <tr><td colspan="8" class="py-4 text-center" style="color: var(--text-muted);">加载中...</td></tr>
-          </tbody>
-        </table>
-      </div>
+    <div class="card">
+      <h2 class="text-lg font-semibold mb-3">📋 最近请求</h2>
+      <div class="table-responsive"><table class="w-full text-xs"><thead><tr class="text-left" style="color:var(--text-muted);border-bottom:1px solid var(--border)"><th class="py-2 px-2">时间</th><th class="py-2 px-2">API</th><th class="py-2 px-2">路径</th><th class="py-2 px-2">状态</th><th class="py-2 px-2">耗时</th><th class="py-2 px-2">模型</th></tr></thead><tbody id="recentRequestsTable"><tr><td colspan="6" class="py-4 text-center" style="color:var(--text-muted)">加载中...</td></tr></tbody></table></div>
     </div>
   </main>
-
   ${COMMON_FOOTER}
-
   <script>
-    let latencyChart, statusChart;
-
-    async function refreshData() {
-      try {
-        const response = await fetch('/api/metrics');
-        const data = await response.json();
-
-        // Update cards
-        document.getElementById('totalRequests').textContent = data.totalRequests || 0;
-        document.getElementById('successRate').textContent =
-          data.totalRequests > 0
-            ? ((data.successRequests / data.totalRequests) * 100).toFixed(1) + '%'
-            : '0%';
-        document.getElementById('avgResponseTime').textContent =
-          (data.avgResponseTime || 0).toFixed(2) + 'ms';
-
-        const uptime = Math.floor((Date.now() - data.startTime) / 1000);
-        const hours = Math.floor(uptime / 3600);
-        const minutes = Math.floor((uptime % 3600) / 60);
-        document.getElementById('uptime').textContent = hours + 'h ' + minutes + 'm';
-
-        document.getElementById('streamRequests').textContent = data.streamRequests || 0;
-        document.getElementById('nonStreamRequests').textContent = data.nonStreamRequests || 0;
-        document.getElementById('failedRequests').textContent = data.failedRequests || 0;
-
-        // Top model
-        const modelUsage = data.modelUsage || {};
-        const topModel = Object.entries(modelUsage).sort((a, b) => b[1] - a[1])[0];
-        document.getElementById('topModel').textContent = topModel ? topModel[0].split('-').slice(-2).join('-') : '-';
-
-        // API type stats
-        const apiTypeUsage = data.apiTypeUsage || {};
-        document.getElementById('openaiRequests').textContent = apiTypeUsage.openai || 0;
-        document.getElementById('anthropicRequests').textContent = apiTypeUsage.anthropic || 0;
-
-        // Update latency chart
-        const responseTimes = data.responseTimes || [];
-        latencyChart.setOption({
-          xAxis: { data: responseTimes.map((_, i) => i + 1) },
-          series: [{ data: responseTimes }]
-        });
-
-        // Update status chart
-        statusChart.data.datasets[0].data = [data.successRequests || 0, data.failedRequests || 0];
-        statusChart.update();
-
-        // Update recent requests table (只显示最近10条)
-        const recentRequests = (data.recentRequests || []).slice(0, 10);
-        const tbody = document.getElementById('recentRequestsTable');
-        if (recentRequests.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="8" class="py-4 text-center" style="color: var(--text-muted);">暂无请求记录</td></tr>';
-        } else {
-          tbody.innerHTML = recentRequests.map(req => \`
-            <tr class="table-row">
-              <td class="py-3 px-4">\${new Date(req.timestamp).toLocaleTimeString()}</td>
-              <td class="py-3 px-4"><span class="badge \${req.apiType === 'anthropic' ? 'bg-purple-600' : 'bg-green-600'} text-white text-xs">\${req.apiType || '-'}</span></td>
-              <td class="py-3 px-4"><span class="badge bg-blue-600 text-white">\${req.method}</span></td>
-              <td class="py-3 px-4 font-mono text-xs">\${req.path}</td>
-              <td class="py-3 px-4">
-                <span class="\${req.status < 400 ? 'text-green-400' : 'text-red-400'}">\${req.status}</span>
-              </td>
-              <td class="py-3 px-4">\${req.duration.toFixed(2)}ms</td>
-              <td class="py-3 px-4 text-xs">\${req.model || '-'}</td>
-              <td class="py-3 px-4 text-xs text-red-400" title="\${req.error || ''}">\${req.error ? (req.error.length > 50 ? req.error.substring(0, 50) + '...' : req.error) : '-'}</td>
-            </tr>
-          \`).join('');
-        }
-      } catch (e) {
-        console.error('Failed to fetch metrics:', e);
-      }
-    }
-
-    // Initialize ECharts
-    latencyChart = echarts.init(document.getElementById('latencyChart'));
-    latencyChart.setOption({
-      tooltip: { trigger: 'axis' },
-      xAxis: { type: 'category', data: [], axisLabel: { color: '#94a3b8' }, axisLine: { lineStyle: { color: '#334155' } } },
-      yAxis: { type: 'value', name: 'ms', axisLabel: { color: '#94a3b8' }, axisLine: { lineStyle: { color: '#334155' } }, splitLine: { lineStyle: { color: '#1e293b' } } },
-      series: [{
-        type: 'line',
-        smooth: true,
-        data: [],
-        areaStyle: { color: 'rgba(99, 102, 241, 0.2)' },
-        lineStyle: { color: '#6366f1' },
-        itemStyle: { color: '#6366f1' }
-      }]
-    });
-
-    // Initialize Chart.js
-    const ctx = document.getElementById('statusChart').getContext('2d');
-    statusChart = new Chart(ctx, {
-      type: 'doughnut',
-      data: {
-        labels: ['成功', '失败'],
-        datasets: [{
-          data: [0, 0],
-          backgroundColor: ['#22c55e', '#ef4444'],
-          borderWidth: 0
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { position: 'bottom', labels: { color: '#94a3b8' } }
-        }
-      }
-    });
-
-    // Initial load and auto-refresh
-    refreshData();
-    setInterval(refreshData, 5000);
-    window.addEventListener('resize', () => latencyChart.resize());
+let lc,sc;
+async function refreshData(){try{const r=await fetch('/api/metrics'),d=await r.json();document.getElementById('totalRequests').textContent=d.totalRequests||0;document.getElementById('successRate').textContent=d.totalRequests>0?((d.successRequests/d.totalRequests)*100).toFixed(1)+'%':'0%';document.getElementById('avgResponseTime').textContent=(d.avgResponseTime||0).toFixed(0)+'ms';const u=Math.floor((Date.now()-d.startTime)/1000);document.getElementById('uptime').textContent=Math.floor(u/3600)+'h '+Math.floor((u%3600)/60)+'m';document.getElementById('streamRequests').textContent=d.streamRequests||0;document.getElementById('nonStreamRequests').textContent=d.nonStreamRequests||0;document.getElementById('failedRequests').textContent=d.failedRequests||0;const m=Object.entries(d.modelUsage||{}).sort((a,b)=>b[1]-a[1])[0];document.getElementById('topModel').textContent=m?m[0].split('-').slice(-2).join('-'):'-';document.getElementById('openaiRequests').textContent=(d.apiTypeUsage||{}).openai||0;document.getElementById('anthropicRequests').textContent=(d.apiTypeUsage||{}).anthropic||0;const rt=d.responseTimes||[];lc.setOption({xAxis:{data:rt.map((_,i)=>i+1)},series:[{data:rt}]});sc.data.datasets[0].data=[d.successRequests||0,d.failedRequests||0];sc.update();const rq=(d.recentRequests||[]).slice(0,10),tb=document.getElementById('recentRequestsTable');tb.innerHTML=rq.length?rq.map(q=>'<tr style="border-bottom:1px solid var(--border)"><td class="py-2 px-2">'+new Date(q.timestamp).toLocaleTimeString()+'</td><td class="py-2 px-2"><span class="text-xs px-1 rounded '+(q.apiType==='anthropic'?'bg-purple-600':'bg-green-600')+' text-white">'+q.apiType+'</span></td><td class="py-2 px-2 font-mono">'+q.path+'</td><td class="py-2 px-2 '+(q.status<400?'text-green-400':'text-red-400')+'">'+q.status+'</td><td class="py-2 px-2">'+q.duration.toFixed(0)+'ms</td><td class="py-2 px-2">'+(q.model||'-')+'</td></tr>').join(''):'<tr><td colspan="6" class="py-4 text-center" style="color:var(--text-muted)">暂无</td></tr>'}catch(e){console.error(e)}}
+lc=echarts.init(document.getElementById('latencyChart'));lc.setOption({tooltip:{trigger:'axis'},xAxis:{type:'category',data:[],axisLabel:{color:'#94a3b8'}},yAxis:{type:'value',name:'ms',axisLabel:{color:'#94a3b8'}},series:[{type:'line',smooth:true,data:[],areaStyle:{color:'rgba(99,102,241,0.2)'},lineStyle:{color:'#6366f1'}}]});
+sc=new Chart(document.getElementById('statusChart'),{type:'doughnut',data:{labels:['成功','失败'],datasets:[{data:[0,0],backgroundColor:['#22c55e','#ef4444'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:'#94a3b8'}}}}});
+refreshData();setInterval(refreshData,5000);window.addEventListener('resize',()=>lc.resize());
   </script>
 </body>
 </html>`;
@@ -3039,6 +2990,14 @@ async function handleRequest(req: Request): Promise<Response> {
           response = new Response(renderDashboardPage(), {
             headers: { "Content-Type": "text/html; charset=utf-8" },
           });
+          break;
+        case "/swagger":
+          response = new Response(renderSwaggerPage(), {
+            headers: { "Content-Type": "text/html; charset=utf-8" },
+          });
+          break;
+        case "/openapi.json":
+          response = Response.json(generateOpenAPISpec());
           break;
         case "/health":
           response = Response.json({
@@ -3183,7 +3142,21 @@ async function handleRequest(req: Request): Promise<Response> {
   }
 }
 
-function verifyApiKey(req: Request): boolean {
+// 用户认证信息缓存
+interface UserAuth {
+  refreshToken: string;
+  authManager: KiroAuthManager;
+}
+
+const userAuthCache = new Map<string, UserAuth>();
+
+/**
+ * 验证 API Key 并提取用户的 refresh token
+ * 支持两种格式：
+ * 1. 简单格式：PROXY_API_KEY（使用全局配置的 REFRESH_TOKEN）
+ * 2. 组合格式：PROXY_API_KEY:REFRESH_TOKEN（用户自带 refresh token）
+ */
+function verifyApiKey(req: Request): { valid: boolean; refreshToken?: string; apiKey?: string } {
   const authHeader = req.headers.get("Authorization");
   const xApiKey = req.headers.get("x-api-key");
 
@@ -3193,14 +3166,79 @@ function verifyApiKey(req: Request): boolean {
     token = authHeader.slice(7);
   }
 
-  if (token === settings.proxyApiKey) return true;
-  if (xApiKey === settings.proxyApiKey) return true;
+  // 优先使用 x-api-key，其次使用 Authorization Bearer token
+  const providedKey = xApiKey || token;
 
-  return false;
+  if (!providedKey) {
+    return { valid: false };
+  }
+
+  // 检查是否包含 : 分隔符（组合格式）
+  if (providedKey.includes(":")) {
+    const parts = providedKey.split(":");
+    if (parts.length === 2) {
+      const [apiKey, refreshToken] = parts;
+
+      // 验证 API Key 部分
+      if (apiKey === settings.proxyApiKey) {
+        logger.debug(`Multi-tenant mode: PROXY_API_KEY:REFRESH_TOKEN (token: ${maskToken(refreshToken)})`);
+        return { valid: true, refreshToken, apiKey };
+      }
+    }
+  }
+
+  // 简单格式：只验证 API Key
+  if (providedKey === settings.proxyApiKey) {
+    logger.debug("Traditional mode: PROXY_API_KEY only");
+    return { valid: true, apiKey: providedKey };
+  }
+
+  logger.warning(`Invalid API key: ${maskToken(providedKey)}`);
+  return { valid: false };
+}
+
+/**
+ * 获取或创建用户专属的认证管理器
+ */
+async function getUserAuthManager(refreshToken?: string): Promise<KiroAuthManager> {
+  // 如果没有提供 refreshToken，使用全局的 authManager
+  if (!refreshToken) {
+    return authManager;
+  }
+
+  // 检查缓存
+  const cacheKey = refreshToken.slice(0, 16); // 使用前16个字符作为缓存键
+  const cached = userAuthCache.get(cacheKey);
+  if (cached && cached.refreshToken === refreshToken) {
+    return cached.authManager;
+  }
+
+  // 创建新的认证管理器
+  logger.info(`Creating new auth manager for user: ${maskToken(refreshToken)}`);
+  const userAuthMgr = new KiroAuthManager(
+    refreshToken,
+    settings.profileArn,
+    settings.region,
+    ""
+  );
+  await userAuthMgr.init();
+
+  // 缓存
+  userAuthCache.set(cacheKey, { refreshToken, authManager: userAuthMgr });
+
+  // 限制缓存大小（最多100个用户）
+  if (userAuthCache.size > 100) {
+    const firstKey = userAuthCache.keys().next().value;
+    userAuthCache.delete(firstKey);
+    logger.debug(`Auth cache size limit reached, removed oldest entry`);
+  }
+
+  return userAuthMgr;
 }
 
 async function handleChatCompletions(req: Request): Promise<Response> {
-  if (!verifyApiKey(req)) {
+  const authResult = verifyApiKey(req);
+  if (!authResult.valid) {
     return Response.json({ error: { message: "Invalid or missing API Key" } }, { status: 401 });
   }
 
@@ -3219,11 +3257,14 @@ async function handleChatCompletions(req: Request): Promise<Response> {
   const conversationId = generateConversationId();
 
   try {
-    const kiroPayload = buildKiroPayload(body, conversationId, authManager.profile);
-    const kiroUrl = `${authManager.apiHost}/generateAssistantResponse`;
+    // 获取用户专属的认证管理器
+    const userAuthMgr = await getUserAuthManager(authResult.refreshToken);
+
+    const kiroPayload = buildKiroPayload(body, conversationId, userAuthMgr.profile);
+    const kiroUrl = `${userAuthMgr.apiHost}/generateAssistantResponse`;
 
     logger.debug(`Sending request to Kiro API: ${kiroUrl}`);
-    const response = await requestWithRetry(authManager, kiroUrl, kiroPayload, true);
+    const response = await requestWithRetry(userAuthMgr, kiroUrl, kiroPayload, true);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -3282,7 +3323,8 @@ async function handleChatCompletions(req: Request): Promise<Response> {
 }
 
 async function handleAnthropicMessages(req: Request): Promise<Response> {
-  if (!verifyApiKey(req)) {
+  const authResult = verifyApiKey(req);
+  if (!authResult.valid) {
     return Response.json({
       type: "error",
       error: { type: "authentication_error", message: "Invalid or missing API Key" },
@@ -3307,11 +3349,14 @@ async function handleAnthropicMessages(req: Request): Promise<Response> {
   const conversationId = generateConversationId();
 
   try {
-    const kiroPayload = buildKiroPayload(openaiRequest, conversationId, authManager.profile);
-    const kiroUrl = `${authManager.apiHost}/generateAssistantResponse`;
+    // 获取用户专属的认证管理器
+    const userAuthMgr = await getUserAuthManager(authResult.refreshToken);
+
+    const kiroPayload = buildKiroPayload(openaiRequest, conversationId, userAuthMgr.profile);
+    const kiroUrl = `${userAuthMgr.apiHost}/generateAssistantResponse`;
 
     logger.debug(`Sending request to Kiro API: ${kiroUrl}`);
-    const response = await requestWithRetry(authManager, kiroUrl, kiroPayload, true);
+    const response = await requestWithRetry(userAuthMgr, kiroUrl, kiroPayload, true);
 
     if (!response.ok) {
       const errorText = await response.text();
