@@ -577,6 +577,9 @@ COMMON_HEAD = r'''
   </script>
 '''
 
+# 还原 COMMON_HEAD 中为兼容 f-string 而写入的双大括号，避免输出到页面后出现语法错误。
+COMMON_HEAD = COMMON_HEAD.replace("{{", "{").replace("}}", "}")
+
 COMMON_NAV = r'''
   <nav style="background: var(--bg-nav); border-bottom: 1px solid var(--border); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);" class="sticky top-0 z-50">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -837,6 +840,11 @@ COMMON_FOOTER = '''
     </div>
   </footer>
 '''
+
+# 还原 COMMON_NAV 中为兼容 f-string 而写入的双大括号，避免前端脚本语法错误。
+COMMON_NAV = COMMON_NAV.replace("{{", "{").replace("}}", "}")
+# 填充版本号占位符。
+COMMON_NAV = COMMON_NAV.replace("{APP_VERSION}", APP_VERSION)
 
 # 移除旧的 THEME_SCRIPT，已经集成到 COMMON_NAV 中
 
